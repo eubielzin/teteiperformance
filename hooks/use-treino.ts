@@ -114,7 +114,7 @@ export function useTreino() {
           usuario_id: slugify(riderName),
           rider_name: riderName,
           distance_km: final.distancia_km,
-          avg_speed_kmh: final.velocidade_kmh,
+          avg_speed_kmh: final.velocidade_media_kmh,
           duration_seconds: final.tempo_segundos,
           rotations: final.rotacoes,
           started_at: startedAtRef.current,

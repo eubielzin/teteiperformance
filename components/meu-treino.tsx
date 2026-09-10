@@ -15,6 +15,13 @@ function formatTempo(segundos: number) {
   return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
 }
 
+// O FastAPI é uma fonte externa (fora do nosso controle) — protege contra
+// campos ausentes/null/NaN em qualquer resposta pra não derrubar a tela.
+function num(value: unknown): number {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
 function Metric({
   icon,
   label,
@@ -58,10 +65,10 @@ export function MeuTreino() {
       gym: '',
       category: 'Sub-30',
       color: colorForId(riderName || 'meu-treino'),
-      km: status.distancia_km,
-      speed: status.velocidade_kmh,
-      cadence: status.rotacoes,
-      active: status.ativa,
+      km: num(status.distancia_km),
+      speed: num(status.velocidade_atual_kmh),
+      cadence: num(status.rpm),
+      active: Boolean(status.ativa),
     }
     return rank([rider])
   }, [status, riderName])
@@ -140,10 +147,10 @@ export function MeuTreino() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Metric icon={<MapPin className="h-5 w-5" aria-hidden />} label="Distância" value={status.distancia_km.toFixed(2)} unit="km" />
-            <Metric icon={<Gauge className="h-5 w-5" aria-hidden />} label="Velocidade" value={status.velocidade_kmh.toFixed(1)} unit="km/h" />
-            <Metric icon={<Timer className="h-5 w-5" aria-hidden />} label="Tempo" value={formatTempo(status.tempo_segundos)} />
-            <Metric icon={<Bike className="h-5 w-5" aria-hidden />} label="Rotações" value={String(status.rotacoes)} />
+            <Metric icon={<MapPin className="h-5 w-5" aria-hidden />} label="Distância" value={num(status.distancia_km).toFixed(2)} unit="km" />
+            <Metric icon={<Gauge className="h-5 w-5" aria-hidden />} label="Velocidade" value={num(status.velocidade_atual_kmh).toFixed(1)} unit="km/h" />
+            <Metric icon={<Timer className="h-5 w-5" aria-hidden />} label="Tempo" value={formatTempo(num(status.tempo_segundos))} />
+            <Metric icon={<Bike className="h-5 w-5" aria-hidden />} label="Rotações" value={String(num(status.rotacoes))} />
           </div>
 
           {isRunning && (
