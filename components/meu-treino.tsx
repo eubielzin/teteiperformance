@@ -50,7 +50,20 @@ function Metric({
 }
 
 export function MeuTreino() {
-  const { riderName, setRiderName, phase, status, error, iniciar, finalizar, reiniciar } = useTreino()
+  const {
+    riderName,
+    setRiderName,
+    riderPhone,
+    setRiderPhone,
+    phase,
+    countdown,
+    status,
+    error,
+    iniciar,
+    cancelarCountdown,
+    finalizar,
+    reiniciar,
+  } = useTreino()
 
   const isRunning = phase === 'active' || phase === 'finishing'
   const isFinished = phase === 'finished'
@@ -107,6 +120,18 @@ export function MeuTreino() {
             placeholder="Como podemos te chamar?"
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
           />
+          <label htmlFor="rider-phone" className="text-sm font-medium">
+            Número de celular
+          </label>
+          <input
+            id="rider-phone"
+            type="tel"
+            inputMode="tel"
+            value={riderPhone}
+            onChange={(e) => setRiderPhone(e.target.value)}
+            placeholder="(11) 99999-9999"
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+          />
           <button
             type="button"
             onClick={iniciar}
@@ -114,6 +139,20 @@ export function MeuTreino() {
           >
             <Play className="h-4 w-4" aria-hidden />
             Iniciar treino
+          </button>
+        </div>
+      )}
+
+      {phase === 'countdown' && (
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-8 text-center">
+          <p className="text-sm text-muted-foreground">Prepare-se! Seu treino começa em</p>
+          <p className="font-mono text-6xl font-bold tabular-nums text-primary">{countdown}s</p>
+          <button
+            type="button"
+            onClick={cancelarCountdown}
+            className="mt-2 rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-destructive hover:text-destructive"
+          >
+            Cancelar
           </button>
         </div>
       )}

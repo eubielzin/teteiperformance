@@ -5,6 +5,7 @@ export type SessionRecord = {
   id: string
   usuario_id: string
   rider_name: string
+  phone: string | null
   distance_km: number
   avg_speed_kmh: number
   duration_seconds: number
