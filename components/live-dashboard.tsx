@@ -1,8 +1,8 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Bike, User } from 'lucide-react'
+import { Bike, Trophy, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { rank, type Category, type RankedRider } from '@/lib/riders'
 import { useSessionRanking } from '@/hooks/use-session-ranking'
@@ -23,6 +23,7 @@ export function LiveDashboard() {
   const { riders, sessionsByRider, totalSessions, loading, error } = useSessionRanking()
   const [filter, setFilter] = useState<Category | 'all'>('all')
   const [selectedRider, setSelectedRider] = useState<RankedRider | null>(null)
+  const [highlightedRiderId, setHighlightedRiderId] = useState<string | null>(null)
 
   const ranked = useMemo(() => {
     const base = filter === 'all' ? riders : riders.filter((r) => r.category === filter)
@@ -30,6 +31,26 @@ export function LiveDashboard() {
   }, [riders, filter])
 
   const allRanked = useMemo(() => rank(riders), [riders])
+
+  const highlightedRider = useMemo(
+    () => (highlightedRiderId ? allRanked.find((r) => r.id === highlightedRiderId) ?? null : null),
+    [allRanked, highlightedRiderId],
+  )
+
+  // Chega aqui vindo de "Meu treino" (?rider=<id>) assim que alguém termina
+  // um treino — garante que a categoria certa fique visível e mantém o
+  // destaque por alguns segundos enquanto o ranking carrega/atualiza.
+  useEffect(() => {
+    const riderId = new URLSearchParams(window.location.search).get('rider')
+    if (!riderId) return
+
+    setFilter('all')
+    setHighlightedRiderId(riderId)
+    window.history.replaceState(null, '', window.location.pathname)
+
+    const timer = setTimeout(() => setHighlightedRiderId(null), 8000)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <main className="mx-auto flex max-w-7xl flex-col gap-4 p-4 md:p-6 lg:gap-6">
@@ -84,6 +105,16 @@ export function LiveDashboard() {
         </p>
       )}
 
+      {highlightedRider && (
+        <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 text-sm">
+          <Trophy className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+          <p>
+            Treino finalizado! <strong>{highlightedRider.name}</strong> ficou em{' '}
+            <strong>{highlightedRider.rank}º lugar</strong> com {highlightedRider.km.toFixed(2)} km.
+          </p>
+        </div>
+      )}
+
       <StatsBar riders={allRanked} totalSessions={totalSessions} />
 
       <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
@@ -92,7 +123,7 @@ export function LiveDashboard() {
           <Achievements riders={allRanked} />
         </div>
         <div className="lg:col-span-2">
-          <Leaderboard riders={ranked} onSelect={setSelectedRider} />
+          <Leaderboard riders={ranked} onSelect={setSelectedRider} highlightedId={highlightedRiderId} />
         </div>
       </div>
 

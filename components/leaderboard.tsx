@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { Bike, Trophy } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { initials, type RankedRider } from '@/lib/riders'
@@ -25,10 +26,23 @@ function RankMedal({ rank }: { rank: number }) {
 export function Leaderboard({
   riders,
   onSelect,
+  highlightedId,
 }: {
   riders: RankedRider[]
   onSelect?: (rider: RankedRider) => void
+  // Ciclista que acabou de terminar um treino — usado pra rolar até a linha
+  // dele e chamar atenção pra posição, logo após o redirecionamento do
+  // "Meu treino".
+  highlightedId?: string | null
 }) {
+  const highlightedRef = useRef<HTMLLIElement>(null)
+
+  useEffect(() => {
+    if (highlightedId) {
+      highlightedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [highlightedId])
+
   return (
     <div className="flex h-full flex-col rounded-2xl border border-border bg-card">
       <div className="flex items-center gap-2 border-b border-border p-4">
@@ -38,10 +52,17 @@ export function Leaderboard({
       </div>
 
       <ol className="divide-y divide-border overflow-hidden">
-        {riders.map((r) => (
+        {riders.map((r) => {
+          const isHighlighted = r.id === highlightedId
+          return (
           <li
             key={r.id}
-            className={cn('transition-colors', r.rank <= 3 && 'bg-primary/5')}
+            ref={isHighlighted ? highlightedRef : undefined}
+            className={cn(
+              'transition-colors',
+              r.rank <= 3 && 'bg-primary/5',
+              isHighlighted && 'animate-highlight-pulse bg-primary/15',
+            )}
           >
             <button
               type="button"
@@ -85,7 +106,8 @@ export function Leaderboard({
               </div>
             </button>
           </li>
-        ))}
+          )
+        })}
       </ol>
     </div>
   )

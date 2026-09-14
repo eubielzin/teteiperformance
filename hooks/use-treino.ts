@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import {
   buscarStatus,
@@ -47,6 +48,7 @@ function slugify(name: string): string {
 // Controla o ciclo de vida de uma sessão individual de treino:
 // iniciar -> poll de status a cada 1s -> finalizar -> salvar histórico no Supabase.
 export function useTreino() {
+  const router = useRouter()
   const [riderName, setRiderName] = useState('')
   const [riderPhone, setRiderPhoneRaw] = useState('')
   const [phase, setPhase] = useState<TreinoPhase>('idle')
@@ -123,10 +125,11 @@ export function useTreino() {
     try {
       const final = await finalizarSessao()
       setStatus(final)
+      const usuarioId = slugify(riderName)
 
       if (isSupabaseConfigured && supabase) {
         const { error: insertError } = await supabase.from('sessions').insert({
-          usuario_id: slugify(riderName),
+          usuario_id: usuarioId,
           rider_name: riderName,
           phone: riderPhone || null,
           distance_km: final.distancia_km,
@@ -141,6 +144,9 @@ export function useTreino() {
       }
 
       setPhase('finished')
+      // Leva a pessoa direto pro ranking geral, já com a posição dela em destaque
+      // (tanto no fim natural dos 40s quanto na finalização manual).
+      router.push(`/?rider=${encodeURIComponent(usuarioId)}`)
     } catch (err) {
       // A sessão pode continuar rodando no Raspberry mesmo se a chamada falhar,
       // então voltamos a acompanhar o status em vez de perder o treino em andamento.
@@ -148,7 +154,7 @@ export function useTreino() {
       setPhase('active')
       startPolling()
     }
-  }, [riderName, riderPhone, stopPolling, startPolling, stopRideCountdown])
+  }, [riderName, riderPhone, stopPolling, startPolling, stopRideCountdown, router])
 
   // Contagem regressiva do percurso em si: começa quando a bike conecta e,
   // ao zerar, encerra a corrida automaticamente (fluxo de "tempo esgotado").
