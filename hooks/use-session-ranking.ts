@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
-import { aggregateSessionsToRiders, type SessionRecord } from '@/types/session'
+import { aggregateSessionsToRiders, groupSessionsByRider, type SessionRecord } from '@/types/session'
 import type { Rider } from '@/lib/riders'
 
 const TABLE = 'sessions'
@@ -14,6 +14,7 @@ const CHANNEL = 'sessions-history'
 // completo a cada evento é simples e não pesa.
 export function useSessionRanking() {
   const [riders, setRiders] = useState<Rider[]>([])
+  const [sessionsByRider, setSessionsByRider] = useState<Map<string, SessionRecord[]>>(new Map())
   const [totalSessions, setTotalSessions] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,6 +32,7 @@ export function useSessionRanking() {
     } else {
       const sessions = (data as SessionRecord[]) ?? []
       setRiders(aggregateSessionsToRiders(sessions))
+      setSessionsByRider(groupSessionsByRider(sessions))
       setTotalSessions(sessions.length)
       setError(null)
     }
@@ -56,5 +58,5 @@ export function useSessionRanking() {
     }
   }, [reload])
 
-  return { riders, totalSessions, loading, error }
+  return { riders, sessionsByRider, totalSessions, loading, error }
 }

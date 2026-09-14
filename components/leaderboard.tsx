@@ -22,7 +22,13 @@ function RankMedal({ rank }: { rank: number }) {
   )
 }
 
-export function Leaderboard({ riders }: { riders: RankedRider[] }) {
+export function Leaderboard({
+  riders,
+  onSelect,
+}: {
+  riders: RankedRider[]
+  onSelect?: (rider: RankedRider) => void
+}) {
   return (
     <div className="flex h-full flex-col rounded-2xl border border-border bg-card">
       <div className="flex items-center gap-2 border-b border-border p-4">
@@ -35,42 +41,49 @@ export function Leaderboard({ riders }: { riders: RankedRider[] }) {
         {riders.map((r) => (
           <li
             key={r.id}
-            className={cn(
-              'flex items-center gap-3 px-4 py-3 transition-colors',
-              r.rank <= 3 && 'bg-primary/5',
-            )}
+            className={cn('transition-colors', r.rank <= 3 && 'bg-primary/5')}
           >
-            <RankMedal rank={r.rank} />
-
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-              style={{ backgroundColor: r.color, color: 'oklch(0.17 0.02 260)' }}
-              aria-hidden
+            <button
+              type="button"
+              onClick={() => onSelect?.(r)}
+              disabled={!onSelect}
+              className={cn(
+                'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors',
+                onSelect && 'hover:bg-primary/10 focus-visible:bg-primary/10 outline-none cursor-pointer',
+              )}
             >
-              {initials(r.name)}
-            </div>
+              <RankMedal rank={r.rank} />
 
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium leading-tight">{r.name}</p>
-              <p className="truncate text-xs text-muted-foreground">
-                {r.gym} · {r.category}
-              </p>
-            </div>
-
-            <div className="text-right">
-              <p className="font-mono text-sm font-semibold tabular-nums">
-                {r.km.toFixed(2)} <span className="text-xs text-muted-foreground">km</span>
-              </p>
-              <p
-                className={cn(
-                  'flex items-center justify-end gap-1 text-xs tabular-nums',
-                  r.active ? 'text-primary' : 'text-muted-foreground',
-                )}
+              <div
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+                style={{ backgroundColor: r.color, color: 'oklch(0.17 0.02 260)' }}
+                aria-hidden
               >
-                <Bike className="h-3 w-3" aria-hidden />
-                {r.speed.toFixed(0)} km/h
-              </p>
-            </div>
+                {initials(r.name)}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium leading-tight">{r.name}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {r.gym} · {r.category}
+                </p>
+              </div>
+
+              <div className="text-right">
+                <p className="font-mono text-sm font-semibold tabular-nums">
+                  {r.km.toFixed(2)} <span className="text-xs text-muted-foreground">km</span>
+                </p>
+                <p
+                  className={cn(
+                    'flex items-center justify-end gap-1 text-xs tabular-nums',
+                    r.active ? 'text-primary' : 'text-muted-foreground',
+                  )}
+                >
+                  <Bike className="h-3 w-3" aria-hidden />
+                  {r.speed.toFixed(0)} km/h
+                </p>
+              </div>
+            </button>
           </li>
         ))}
       </ol>

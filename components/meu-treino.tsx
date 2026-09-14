@@ -8,6 +8,10 @@ import { colorForId, rank, type Rider } from '@/lib/riders'
 import { useTreino } from '@/hooks/use-treino'
 import { VirtualTrack } from '@/components/virtual-track'
 
+// A partir de quantos segundos restantes o cronômetro de preparo vira
+// vermelho e pulsa, pra chamar mais atenção pro tempo acabando.
+const COUNTDOWN_ALERT_THRESHOLD = 10
+
 function formatTempo(segundos: number) {
   const total = Math.max(0, Math.round(segundos))
   const min = Math.floor(total / 60)
@@ -146,7 +150,16 @@ export function MeuTreino() {
       {phase === 'countdown' && (
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-card p-8 text-center">
           <p className="text-sm text-muted-foreground">Prepare-se! Seu treino começa em</p>
-          <p className="font-mono text-6xl font-bold tabular-nums text-primary">{countdown}s</p>
+          <p
+            className={cn(
+              'font-mono text-8xl font-black tabular-nums transition-colors duration-300 md:text-9xl',
+              countdown <= COUNTDOWN_ALERT_THRESHOLD
+                ? 'animate-countdown-alert text-destructive'
+                : 'text-primary',
+            )}
+          >
+            {countdown}s
+          </p>
           <button
             type="button"
             onClick={cancelarCountdown}

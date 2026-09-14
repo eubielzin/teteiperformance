@@ -87,3 +87,18 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Alerta do cronômetro de preparo (Meu treino) quando o tempo está acabando. */
+@keyframes countdown-alert {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+.animate-countdown-alert {
+  animation: countdown-alert 0.6s ease-in-out infinite;
+}

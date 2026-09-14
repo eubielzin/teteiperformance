@@ -3,6 +3,7 @@ export type Category = 'Sub-30' | '30-45' | '45+'
 export type Rider = {
   id: string
   name: string
+  phone?: string | null
   gym: string
   category: Category
   color: string

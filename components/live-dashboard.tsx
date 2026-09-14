@@ -4,12 +4,13 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Bike, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { rank, type Category } from '@/lib/riders'
+import { rank, type Category, type RankedRider } from '@/lib/riders'
 import { useSessionRanking } from '@/hooks/use-session-ranking'
 import { StatsBar } from '@/components/stats-bar'
 import { VirtualTrack } from '@/components/virtual-track'
 import { Leaderboard } from '@/components/leaderboard'
 import { Achievements } from '@/components/achievements'
+import { RiderDetailModal } from '@/components/rider-detail-modal'
 
 const FILTERS: { label: string; value: Category | 'all' }[] = [
   { label: 'Todos', value: 'all' },
@@ -19,8 +20,9 @@ const FILTERS: { label: string; value: Category | 'all' }[] = [
 ]
 
 export function LiveDashboard() {
-  const { riders, totalSessions, loading, error } = useSessionRanking()
+  const { riders, sessionsByRider, totalSessions, loading, error } = useSessionRanking()
   const [filter, setFilter] = useState<Category | 'all'>('all')
+  const [selectedRider, setSelectedRider] = useState<RankedRider | null>(null)
 
   const ranked = useMemo(() => {
     const base = filter === 'all' ? riders : riders.filter((r) => r.category === filter)
@@ -90,13 +92,19 @@ export function LiveDashboard() {
           <Achievements riders={allRanked} />
         </div>
         <div className="lg:col-span-2">
-          <Leaderboard riders={ranked} />
+          <Leaderboard riders={ranked} onSelect={setSelectedRider} />
         </div>
       </div>
 
       <footer className="pt-2 text-center text-xs text-muted-foreground">
         {loading ? 'Conectando ao Supabase Bike_GM…' : 'Histórico de treinos via Supabase Bike_GM'}
       </footer>
+
+      <RiderDetailModal
+        rider={selectedRider}
+        sessions={selectedRider ? sessionsByRider.get(selectedRider.id) ?? [] : []}
+        onClose={() => setSelectedRider(null)}
+      />
     </main>
   )
 }
