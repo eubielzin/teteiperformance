@@ -13,7 +13,8 @@ import {
 const STORAGE_KEY = 'pedal-arena:rider-name'
 const STORAGE_KEY_PHONE = 'pedal-arena:rider-phone'
 const POLL_MS = 1000
-const COUNTDOWN_SECONDS = 40
+const COUNTDOWN_SECONDS = 5
+const RIDE_DURATION_SECONDS = 40
 
 export type TreinoPhase = 'idle' | 'countdown' | 'starting' | 'active' | 'finishing' | 'finished'
 
@@ -50,12 +51,15 @@ export function useTreino() {
   const [riderPhone, setRiderPhoneRaw] = useState('')
   const [phase, setPhase] = useState<TreinoPhase>('idle')
   const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS)
+  const [rideCountdown, setRideCountdown] = useState(RIDE_DURATION_SECONDS)
+  const [timedOut, setTimedOut] = useState(false)
   const [status, setStatus] = useState<SessaoStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const startedAtRef = useRef<string | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const rideCountdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const setRiderPhone = useCallback((value: string) => {
     setRiderPhoneRaw(formatPhone(value))
@@ -86,10 +90,18 @@ export function useTreino() {
     }
   }, [])
 
-  // Garante que o polling e a contagem regressiva nunca ficam órfãos se o
+  const stopRideCountdown = useCallback(() => {
+    if (rideCountdownRef.current) {
+      clearInterval(rideCountdownRef.current)
+      rideCountdownRef.current = null
+    }
+  }, [])
+
+  // Garante que o polling e as contagens regressivas nunca ficam órfãs se o
   // componente desmontar.
   useEffect(() => stopPolling, [stopPolling])
   useEffect(() => stopCountdown, [stopCountdown])
+  useEffect(() => stopRideCountdown, [stopRideCountdown])
 
   const startPolling = useCallback(() => {
     stopPolling()
@@ -103,70 +115,8 @@ export function useTreino() {
     }, POLL_MS)
   }, [stopPolling])
 
-  // Chamada de fato à API do Raspberry — só acontece depois que a contagem
-  // regressiva de preparação chega a zero.
-  const conectarBike = useCallback(async () => {
-    setPhase('starting')
-
-    try {
-      const usuarioId = slugify(riderName)
-      const initial = await iniciarSessao(usuarioId)
-      startedAtRef.current = new Date().toISOString()
-      setStatus(initial)
-      setPhase('active')
-      startPolling()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao iniciar sessão.')
-      setPhase('idle')
-    }
-  }, [riderName, startPolling])
-
-  const iniciar = useCallback(() => {
-    if (!riderName.trim()) {
-      setError('Digite seu nome antes de iniciar.')
-      return
-    }
-    if (riderPhone.replace(/\D/g, '').length < 10) {
-      setError('Digite um número de celular válido (com DDD) antes de iniciar.')
-      return
-    }
-    if (!isBikeApiConfigured()) {
-      setError('NEXT_PUBLIC_BIKE_API_URL não configurada em .env.local.')
-      return
-    }
-
-    setError(null)
-
-    try {
-      window.localStorage.setItem(STORAGE_KEY, riderName)
-      window.localStorage.setItem(STORAGE_KEY_PHONE, riderPhone)
-    } catch {
-      // sem localStorage, sem problema — só não lembra os dados na próxima visita
-    }
-
-    // Contagem regressiva de preparação antes de conectar na bike de verdade.
-    setPhase('countdown')
-    setCountdown(COUNTDOWN_SECONDS)
-    stopCountdown()
-    countdownRef.current = setInterval(() => {
-      setCountdown((seconds) => {
-        if (seconds <= 1) {
-          stopCountdown()
-          conectarBike()
-          return 0
-        }
-        return seconds - 1
-      })
-    }, 1000)
-  }, [riderName, riderPhone, conectarBike, stopCountdown])
-
-  const cancelarCountdown = useCallback(() => {
-    stopCountdown()
-    setPhase('idle')
-    setCountdown(COUNTDOWN_SECONDS)
-  }, [stopCountdown])
-
   const finalizar = useCallback(async () => {
+    stopRideCountdown()
     setPhase('finishing')
     stopPolling()
 
@@ -198,16 +148,102 @@ export function useTreino() {
       setPhase('active')
       startPolling()
     }
-  }, [riderName, riderPhone, stopPolling, startPolling])
+  }, [riderName, riderPhone, stopPolling, startPolling, stopRideCountdown])
+
+  // Contagem regressiva do percurso em si: começa quando a bike conecta e,
+  // ao zerar, encerra a corrida automaticamente (fluxo de "tempo esgotado").
+  const startRideCountdown = useCallback(() => {
+    stopRideCountdown()
+    setRideCountdown(RIDE_DURATION_SECONDS)
+    rideCountdownRef.current = setInterval(() => {
+      setRideCountdown((seconds) => {
+        if (seconds <= 1) {
+          stopRideCountdown()
+          setTimedOut(true)
+          finalizar()
+          return 0
+        }
+        return seconds - 1
+      })
+    }, 1000)
+  }, [stopRideCountdown, finalizar])
+
+  // Chamada de fato à API do Raspberry — só acontece depois que a contagem
+  // regressiva de preparação chega a zero.
+  const conectarBike = useCallback(async () => {
+    setPhase('starting')
+
+    try {
+      const usuarioId = slugify(riderName)
+      const initial = await iniciarSessao(usuarioId)
+      startedAtRef.current = new Date().toISOString()
+      setStatus(initial)
+      setPhase('active')
+      startPolling()
+      startRideCountdown()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao iniciar sessão.')
+      setPhase('idle')
+    }
+  }, [riderName, startPolling, startRideCountdown])
+
+  const iniciar = useCallback(() => {
+    if (!riderName.trim()) {
+      setError('Digite seu nome antes de iniciar.')
+      return
+    }
+    if (riderPhone.replace(/\D/g, '').length < 10) {
+      setError('Digite um número de celular válido (com DDD) antes de iniciar.')
+      return
+    }
+    if (!isBikeApiConfigured()) {
+      setError('NEXT_PUBLIC_BIKE_API_URL não configurada em .env.local.')
+      return
+    }
+
+    setError(null)
+    setTimedOut(false)
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, riderName)
+      window.localStorage.setItem(STORAGE_KEY_PHONE, riderPhone)
+    } catch {
+      // sem localStorage, sem problema — só não lembra os dados na próxima visita
+    }
+
+    // Contagem regressiva de preparação antes de conectar na bike de verdade.
+    setPhase('countdown')
+    setCountdown(COUNTDOWN_SECONDS)
+    stopCountdown()
+    countdownRef.current = setInterval(() => {
+      setCountdown((seconds) => {
+        if (seconds <= 1) {
+          stopCountdown()
+          conectarBike()
+          return 0
+        }
+        return seconds - 1
+      })
+    }, 1000)
+  }, [riderName, riderPhone, conectarBike, stopCountdown])
+
+  const cancelarCountdown = useCallback(() => {
+    stopCountdown()
+    setPhase('idle')
+    setCountdown(COUNTDOWN_SECONDS)
+  }, [stopCountdown])
 
   const reiniciar = useCallback(() => {
     startedAtRef.current = null
     stopCountdown()
+    stopRideCountdown()
     setCountdown(COUNTDOWN_SECONDS)
+    setRideCountdown(RIDE_DURATION_SECONDS)
+    setTimedOut(false)
     setPhase('idle')
     setStatus(null)
     setError(null)
-  }, [stopCountdown])
+  }, [stopCountdown, stopRideCountdown])
 
   return {
     riderName,
@@ -216,6 +252,8 @@ export function useTreino() {
     setRiderPhone,
     phase,
     countdown,
+    rideCountdown,
+    timedOut,
     status,
     error,
     iniciar,
